@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+
+SRCDIR=/glade/work/jkshuman/git/ctsm/src/fates
+SWAPDIR=/glade/work/jkshuman/FATES_data
+FILEWRK=/glade/work/jkshuman/FATES_data/parameter_files
+
+### Obrien.h Salda.a, Salda.l grass agb1=0.001, latosa_int = default (strict PPA)
+SETUP_CASE=MoistTropTreeC3Gr_Obrienh_Saldaa_Saldal_190109
+
+cd /glade/work/jkshuman/jkshuman_python_20181024/bin
+source activate
+pip install pyparsing
+
+### generate a fates parameter file for this experiment.  this requires loading some modules to allow manipulation of the netcdf parameter files
+module load matplotlib
+module load scipy
+ncgen -o $FILEWRK/param_file_${SETUP_CASE}_temp0.nc $SRCDIR/parameter_files/fates_params_14pfts.cdl
+
+### now modify the parameter file
+### first pull out pft of interest (here two sets of tropical evergreen tree, C3 grass, and C4 grass)
+###$SRCDIR/tools/FatesPFTIndexSwapper.py --fin $FILEWRK/param_file_${SETUP_CASE}_temp0.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --pft-indices 1,1,13,14
+
+##using PFTSwapper inside work dir
+$SWAPDIR/FatesPFTIndexSwapper.py --fin $FILEWRK/param_file_${SETUP_CASE}_temp0.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --pft-indices 1,1,13,14
+### update all pfts for params of interest, pfts now indexed as 1,2,3 to be 1: moist trop tree, 2:dry trop tree, 3:C3 grass, 4:C4 grass
+
+### set pft 2 name to dry tropical tree
+###$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_pftname --val 'dry_broadleaf_evergreen_tropical_tree' --PFT 2
+
+### set to strict PPA with comp excln = -1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_comp_excln --val -1
+
+### turn off pft 2 (initd and seed_rain=0) 
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_rain --val 0 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_recruit_initd --val 0 --PFT 2
+
+### turn off pft 4 (initd and seed_rain=0) 
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_rain --val 0 --PFT 4
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_recruit_initd --val 0 --PFT 4
+
+### set initd for grasses
+##$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_recruit_initd --val 0.2 --PFT 3
+##$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_recruit_initd --val 0.2 --PFT 4
+
+#allometric
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_agb1 --val 0.0001 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_agb1 --val 0.0001 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_dbh_maxheight --val 80 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_dbh_maxheight --val 54 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_dbh_maxheight --val 0.3744 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_dbh_maxheight --val 0.3744 --PFT 4
+
+#frbstor: keep bstor set to 0 to avoid implementing movement of storage C for grasses after death
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_allom_frbstor --val 0.0
+
+#branch
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_branch_turnover --val 25 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_branch_turnover --val 25 --PFT 2
+
+#fire
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_fire_alpha_SH --val 0.1487 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_fire_alpha_SH --val 0.06 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_fire_bark_scaler --val 0.077 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_fire_bark_scaler --val 0.1085 --PFT 2
+
+#leaf
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_long --val 1.4025 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_long --val 1.4025 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_long --val 0.3208 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_long --val 0.3208 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slatop --val 0.01892 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slatop --val 0.01892 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slatop --val 0.04024 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slatop --val 0.04024 --PFT 4
+#set slamax = slatop to turn off changes by M. Kovenock
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slamax --val 0.01892 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slamax --val 0.01892 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slamax --val 0.04024 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_slamax --val 0.04024 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_vcmax25top --val 61 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_vcmax25top --val 61 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_vcmax25top --val 78 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_leaf_vcmax25top --val 24 --PFT 4
+
+#phenology
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_phen_evergreen --val 1 --allpfts
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_phen_season_decid --val 0 --allpfts
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_phen_stress_decid --val 0 --allpfts
+
+#recruit
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_recruit_hgt_min --val 0.125 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_recruit_hgt_min --val 0.125 --PFT 4
+
+#visible
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rholnir --val 0.45 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rholnir --val 0.45 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rholnir --val 0.35 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rholnir --val 0.35 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosnir --val 0.39 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosnir --val 0.39 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosnir --val 0.53 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosnir --val 0.53 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosvis --val 0.16 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosvis --val 0.16 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosvis --val 0.31 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rhosvis --val 0.31 --PFT 4
+
+#root
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_roota_par --val 7 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_roota_par --val 7 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_roota_par --val 11 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_roota_par --val 11 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rootb_par --val 1 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rootb_par --val 1 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rootb_par --val 2 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_rootb_par --val 2 --PFT 4
+
+#seed
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_alloc_mature --val 0.9 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_alloc_mature --val 0.9 --PFT 4
+
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_dbh_repro_threshold --val 6.807 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_dbh_repro_threshold --val 1.95 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_dbh_repro_threshold --val 0.3744 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_seed_dbh_repro_threshold --val 0.3744 --PFT 4
+
+#woody=1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_woody --val 1 --PFT 1
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_woody --val 1 --PFT 2
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_woody --val 0 --PFT 3
+$SRCDIR/tools/modify_fates_paramfile.py --fin $FILEWRK/param_file_${SETUP_CASE}.nc --fout $FILEWRK/param_file_${SETUP_CASE}.nc --O --var fates_woody --val 0 --PFT 4
+
+
+### clean up the temporary parameter file
+
+rm $FILEWRK/param_file_${SETUP_CASE}_temp0.nc
+
+### unload the modules needed to manipulate the netcdf file
+module unload matplotlib
+module unload scipy
+
